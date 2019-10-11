@@ -32,19 +32,22 @@ class Date():
         if date_field:
             keys = date_field.split()
         else:
-            keys = ['SubSecCreateDate', 'SubSecDateTimeOriginal', 'CreateDate', 'DateTimeOriginal']
+            keys = ['SubSecCreateDate', 'SubSecDateTimeOriginal', 'CreateDate', 'FileModifyDate', 'DateTimeOriginal']
 
         datestr = None
 
         for key in keys:
             if key in exif:
                 datestr = exif[key]
+                if isinstance(datestr, str) and datestr.startswith('0000'):
+                    datestr = None
+                    continue
                 break
 
         # sometimes exif data can return all zeros
         # check to see if valid date first
         # sometimes this returns an int
-        if datestr and isinstance(datestr, str) and not datestr.startswith('0000'):
+        if datestr:
             parsed_date = self.from_datestring(datestr)
         else:
             parsed_date = {'date': None, 'subseconds': ''}
@@ -73,7 +76,13 @@ class Date():
             try:
                 parsed_date_time = self.strptime(date, "%Y-%m-%d %H:%M:%S")
             except ValueError:
-                parsed_date_time = None
+                try:
+                    parsed_date_time = self.strptime(date, "%d/%m/%Y %H:%M")
+                except ValueError:
+                    try:
+                        parsed_date_time = self.strptime(date, "%d.%m.%Y %H:%M")
+                    except ValueError:
+                        parsed_date_time = None
         return {
             'date': parsed_date_time,
             'subseconds': subseconds

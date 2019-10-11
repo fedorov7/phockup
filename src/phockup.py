@@ -25,7 +25,7 @@ class Phockup():
 
         self.input = input
         self.output = output
-        self.dir_format = args.get('dir_format', os.path.sep.join(['%Y', '%m', '%d']))
+        self.dir_format = os.path.sep.join(['%Y', '%Y-%m-%d'])
         self.move = args.get('move', False)
         self.link = args.get('link', False)
         self.original_filenames = args.get('original_filenames', False)
@@ -106,7 +106,7 @@ class Phockup():
 
         return fullpath
 
-    def get_file_name(self, file, date):
+    def get_file_name(self, file, date, exif=None):
         """
         Generate file name based on exif data unless it is missing or
         original filenames are required. Then use original file name
@@ -115,20 +115,23 @@ class Phockup():
             return os.path.basename(file)
 
         try:
-            filename = [
-                '%04d' % date['date'].year,
-                '%02d' % date['date'].month,
-                '%02d' % date['date'].day,
-                '-',
+            fdate = [
                 '%02d' % date['date'].hour,
                 '%02d' % date['date'].minute,
                 '%02d' % date['date'].second,
             ]
 
-            if date['subseconds']:
-                filename.append(date['subseconds'])
+            filename = '-'.join(fdate)
 
-            return ''.join(filename) + os.path.splitext(file)[1]
+            if exif is not None:
+                if 'Model' in exif:
+                    filename = '-'.join((exif['Model'].replace(' ', '-'), filename))
+                elif 'Make' in exif:
+                    filename = '-'.join((exif['Make'].replace(' ', '-'), filename))
+                elif 'FileName' in exif:
+                    filename = '-'.join((os.path.splitext(exif['FileName'])[0].replace(' ', '-'), filename))
+
+            return filename + os.path.splitext(file)[1]
         except:
             return os.path.basename(file)
 
@@ -186,7 +189,7 @@ class Phockup():
         if exif_data and 'MIMEType' in exif_data and self.is_image_or_video(exif_data['MIMEType']):
             date = Date(file).from_exif(exif_data, self.timestamp, self.date_regex, self.date_field)
             output = self.get_output_dir(date)
-            target_file_name = self.get_file_name(file, date)
+            target_file_name = self.get_file_name(file, date, exif_data)
             if not self.original_filenames:
                 target_file_name = target_file_name.lower()
             target_file_path = os.path.sep.join([output, target_file_name])
